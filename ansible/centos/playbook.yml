@@ -1,0 +1,54 @@
+- hosts: servers
+  become: yes
+  vars:
+    postgresql_version:
+      # series: 9.6
+      # short: 96
+      # repository: 3
+      series: 10
+      short: 10
+      repository: 1
+    groonga_version:
+      repository: 1.4.0-1
+    users:
+      - benchmark
+  tasks:
+    # Base
+    - name: Upgrade packages
+      yum:
+        name: "*"
+        state: latest
+
+    # Users
+    - name: Create users
+      user:
+        name: "{{ item }}"
+        append: true
+      with_items: "{{ users }}"
+
+    # PGroonga
+    - name: Add PostgreSQL YUM repository
+      yum:
+        name: "https://download.postgresql.org/pub/repos/yum/{{ postgresql_version.series }}/redhat/rhel-7-x86_64/pgdg-redhat{{ postgresql_version.short }}-{{ postgresql_version.series }}-{{ postgresql_version.repository }}.noarch.rpm"
+    - name: Add PGroonga YUM repository
+      yum:
+        name: "https://packages.groonga.org/centos/groonga-release-{{ groonga_version.repository }}.noarch.rpm"
+    - name: Install PostgreSQL
+      yum:
+        name: postgresql{{ postgresql_version.short }}-server
+      register: install_postgresql
+    - name: Initialize PostgreSQL database
+      shell: |
+        /usr/pgsql-{{ postgresql_version.series }}/bin/postgresql*{{ postgresql_version.short }}-setup initdb
+      when: install_postgresql.changed
+    - name: Enable PostgreSQL
+      systemd:
+        name: postgresql-{{ postgresql_version.series }}
+        state: started
+        enabled: true
+    - name: Install PGroonga
+      yum:
+        name: "{{ item }}"
+      with_items:
+        - postgresql{{ postgresql_version.short }}-pgroonga
+        - groonga-tokenizer-mecab
