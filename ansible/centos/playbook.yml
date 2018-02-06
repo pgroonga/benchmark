@@ -1,13 +1,13 @@
 - hosts: servers
   become: yes
   vars:
-    postgresql_version:
-      # series: 9.6
-      # short: 96
-      # repository: 3
-      series: 10
-      short: 10
-      repository: 1
+    # postgresql_version:
+    #   # series: 9.6
+    #   # short: 96
+    #   # repository: 3
+    #   series: 10
+    #   short: 10
+    #   repository: 1
     groonga_version:
       repository: 1.4.0-1
     users:
