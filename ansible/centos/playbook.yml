@@ -18,6 +18,12 @@
       yum:
         name: "*"
         state: latest
+    - name: Install packages
+      yum:
+        name: "{{ item }}"
+      with_items:
+        - git
+        - xz
 
     # Users
     - name: Create users
