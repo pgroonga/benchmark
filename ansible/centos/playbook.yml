@@ -61,3 +61,17 @@
         - postgresql{{ postgresql_version.short }}-pgroonga
         - groonga-tokenizer-mecab
         - groonga
+    - name: Set vm.overcomit_memory to 1
+      copy:
+        src: etc/sysctl.d/groonga.conf
+        dest: /etc/sysctl.d/groonga.conf
+        mode: 0755
+        owner: root
+        group: root
+      notify:
+        - Apply sysctl
+
+  handlers:
+    - name: Apply sysctl
+      command: sysctl --system
+
