@@ -23,7 +23,9 @@
         name: "{{ item }}"
       with_items:
         - git
+        - bzip2
         - xz
+        - ruby
 
     # Users
     - name: Create users
