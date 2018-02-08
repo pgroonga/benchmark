@@ -26,6 +26,7 @@
         - bzip2
         - xz
         - ruby
+        - vim
 
     # Users
     - name: Create users
