@@ -11,11 +11,13 @@ class DataSizeReporter
     def open(output_path, database_name, table_name)
       if output_path.exist?
         output_path.open("a") do |output|
+          output.sync = true
           yield(new(output, database_name, table_name))
         end
       else
         FileUtils.mkdir_p(output_path.dirname)
         output_path.open("w") do |output|
+          output.sync = true
           yield(new(output, database_name, table_name, write_headers: true))
         end
       end
