@@ -76,7 +76,13 @@
       notify:
         - Apply sysctl
 
+    # Benchmark scripts
+    - name: Clone benchmark scripts
+      become: false
+      git:
+        repo: "https://github.com/pgroonga/benchmark.git"
+        dest: benchmark
+
   handlers:
     - name: Apply sysctl
       command: sysctl --system
-
