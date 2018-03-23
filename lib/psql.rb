@@ -4,6 +4,9 @@ class Psql
       psql = new(database_name)
       begin
         yield(psql)
+      rescue
+        $stderr.puts("#{$!}: #{$!}")
+        $stderr.puts($@)
       ensure
         psql.close
       end

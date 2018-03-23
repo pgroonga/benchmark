@@ -7,10 +7,17 @@ class BatchUpdater
   def initialize(database_name, table_name, options={})
     @database_name = database_name
     @table_name = table_name
-    @n_updates = options[:n_upates] || 100
+    @n_updates = options[:n_updates] || 100
     @run_vacuum = options[:run_vacuum]
     @run_vacuum = true if @run_vacuum.nil?
-    @data_dir = options[:data_dir] || "."
+    @data_path = options[:data_path]
+    if @data_path.nil?
+      pattern = "#{@table_name}.csv*"
+      @data_path = Dir.glob(pattern).first
+      if @data_path.nil?
+        raise "Data can't be found by pattern: <#{pattern}>"
+      end
+    end
 
     @n_no_updates = 0
     initialize_metadata
@@ -55,14 +62,25 @@ class BatchUpdater
   def initialize_metadata
     Psql.open(@database_name) do |psql|
       response = psql.execute(<<-SQL)
-SELECT column_name
+SELECT column_name, data_type, udt_name
   FROM information_schema.columns
  WHERE table_catalog = '#{@database_name}' AND
        table_name = '#{@table_name}' AND
        table_name::regclass::oid = '#{@table_name}'::regclass::oid
       SQL
       response << psql.finish
-      @columns = response.split
+      @columns = response.each_line.collect do |line|
+        name, data_type, udt_name = line.chomp.split("|")
+        if data_type == "ARRAY"
+          type = udt_name.gsub(/\A_/, "") + "[]"
+        else
+          type = udt_name
+        end
+        {
+          :name => name,
+          :type => type,
+        }
+      end
     end
     Psql.open(@database_name) do |psql|
       response = psql.execute(<<-SQL)
@@ -84,19 +102,12 @@ SELECT column_name
     end
   end
 
-  def initialize_data
-    pattern = "#{@data_dir}/#{@table_name}.csv*"
-    @data_path = Dir.glob(pattern).first
-    if @data_path.nil?
-      raise "Data can't be found by pattern: <#{pattern}>"
-    end
-  end
-
   def open_data
-    case @data_path
+    data_path_string = @data_path.to_s
+    case data_path_string
     when /\.xz/i
       IO.pipe do |input, output|
-        pid = spawn("xzcat", data_path, :out => output)
+        pid = spawn("xzcat", data_path_string, :out => output)
         begin
           output.close
           yield(CSV.new(input))
@@ -107,7 +118,7 @@ SELECT column_name
       end
     when /\.gz/i
       IO.pipe do |input, output|
-        pid = spawn("zcat", data_path, :out => output)
+        pid = spawn("zcat", data_path_string, :out => output)
         begin
           output.close
           yield(CSV.new(input))
@@ -117,7 +128,7 @@ SELECT column_name
         end
       end
     when
-      File.open(@data_path) do |input|
+      @data_path.open do |input|
         yield(CSV.new(input))
       end
     end
@@ -125,7 +136,7 @@ SELECT column_name
 
   def sql_escape(value, type)
     case type
-    when "varchar", "char", "date", "text", "text[]", "integer[]"
+    when "varchar", "bpchar", "date", "text", "text[]", "int4[]"
       quote_escaped_value = value.gsub(/'/, "''")
       "'#{quote_escaped_value}'"
     else
