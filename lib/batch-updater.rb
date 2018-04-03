@@ -50,11 +50,12 @@ class BatchUpdater
     end
 
     elapsed = Benchmark.measure do
-      Psql.open(@database_name) do |psql|
-        index_name = "#{@table_name}_full_text_search_index"
-        run_sql(psql, "SELECT pgroonga_wal_truncate('#{index_name}');")
-        run_io_flush(psql)
-        psql.finish
+      @schema.pgroonga_indexes.each do |name, _pgroonga_index|
+        Psql.open(@database_name) do |psql|
+          run_sql(psql, "SELECT pgroonga_wal_truncate('#{name}');")
+          run_io_flush(psql)
+          psql.finish
+        end
       end
     end
     puts("WAL    #{@table_name}: #{elapsed}")

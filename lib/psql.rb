@@ -1,3 +1,5 @@
+require "json"
+
 class Psql
   class << self
     def open(database_name)
@@ -10,6 +12,38 @@ class Psql
       ensure
         psql.close
       end
+    end
+
+    def run(database_name, sql, type: nil)
+      Psql.open(database_name) do |psql|
+        response = psql.execute(sql)
+        response << psql.finish
+        psql.close
+
+        case type
+        when :integer
+          Integer(response, 10)
+        when :string
+          response.chomp
+        when :json
+          JSON.parse(response)
+        else
+          response
+        end
+      end
+    end
+
+    def run_groonga(database_name, command)
+      response = run(database_name,
+                     "SELECT pgroonga_command('#{command}')",
+                     type: :json)
+      header, body = response
+      unless header[0].zero?
+        message = "Failed to execute Groonga command: "
+        message << "#{header.inspect}: <#{command}>"
+        raise message
+      end
+      body
     end
   end
 
