@@ -83,6 +83,14 @@
         repo: "https://github.com/pgroonga/benchmark.git"
         dest: benchmark
 
+    # Ruby libraries
+    - name: Install Ruby libraries
+      gem:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - red-datasets
+
   handlers:
     - name: Apply sysctl
       command: sysctl --system
