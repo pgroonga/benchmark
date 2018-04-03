@@ -2,6 +2,7 @@ require "benchmark"
 require "csv"
 
 require_relative "psql"
+require_relative "schema"
 
 class BatchUpdater
   def initialize(database_name, table_name, options={})
@@ -20,7 +21,8 @@ class BatchUpdater
     end
 
     @n_no_updates = 0
-    initialize_metadata
+
+    @schema = Schema.new(@database_name, @table_name)
   end
 
   def update(nth_batch)
@@ -59,49 +61,6 @@ class BatchUpdater
   end
 
   private
-  def initialize_metadata
-    Psql.open(@database_name) do |psql|
-      response = psql.execute(<<-SQL)
-SELECT column_name, data_type, udt_name
-  FROM information_schema.columns
- WHERE table_catalog = '#{@database_name}' AND
-       table_name = '#{@table_name}' AND
-       table_name::regclass::oid = '#{@table_name}'::regclass::oid
-      SQL
-      response << psql.finish
-      @columns = response.each_line.collect do |line|
-        name, data_type, udt_name = line.chomp.split("|")
-        if data_type == "ARRAY"
-          type = udt_name.gsub(/\A_/, "") + "[]"
-        else
-          type = udt_name
-        end
-        {
-          :name => name,
-          :type => type,
-        }
-      end
-    end
-    Psql.open(@database_name) do |psql|
-      response = psql.execute(<<-SQL)
-SELECT column_name
-  FROM information_schema.constraint_column_usage AS usage
-       INNER JOIN
-       information_schema.table_constraints AS constraints
-       USING (
-         constraint_catalog,
-         constraint_schema,
-         constraint_name
-       )
- WHERE constraint_type = 'PRIMARY KEY' AND
-       usage.table_name = '#{@table_name}' AND
-       usage.table_name::regclass::oid = '#{@table_name}'::regclass::oid
-      SQL
-      response << psql.finish
-      @primary_key_names = response.split
-    end
-  end
-
   def open_data
     data_path_string = @data_path.to_s
     case data_path_string
@@ -131,16 +90,6 @@ SELECT column_name
       @data_path.open do |input|
         yield(CSV.new(input))
       end
-    end
-  end
-
-  def sql_escape(value, type)
-    case type
-    when "varchar", "bpchar", "date", "text", "text[]", "int4[]"
-      quote_escaped_value = value.gsub(/'/, "''")
-      "'#{quote_escaped_value}'"
-    else
-      value
     end
   end
 
@@ -180,13 +129,13 @@ SELECT column_name
       sql = "UPDATE #{@table_name}\n"
       conditions = []
       updates = []
-      @columns.each_with_index do |column, i|
-        if @primary_key_names.include?(column[:name])
-          escaped_value = sql_escape(next_record[i], column[:type])
-          conditions << "#{column[:name]} = #{escaped_value}"
+      @schema.columns.each_value.with_index do |column, i|
+        if @schema.primary_key_names.include?(column.name)
+          escaped_value = column.escape_value(next_record[i])
+          conditions << "#{column.name} = #{escaped_value}"
         else
-          escaped_value = sql_escape(update_record[i], column[:type])
-          updates << "#{column[:name]} = #{escaped_value}"
+          escaped_value = column.escape_value(update_record[i])
+          updates << "#{column.name} = #{escaped_value}"
         end
       end
       sql << "  SET\n"
