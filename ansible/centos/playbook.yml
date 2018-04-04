@@ -8,8 +8,6 @@
     #   series: 10
     #   short: 10
     #   repository: 1
-    groonga_version:
-      repository: 1.4.0-1
     users:
       - benchmark
   tasks:
@@ -45,7 +43,7 @@
         name: "https://download.postgresql.org/pub/repos/yum/{{ postgresql_version.series }}/redhat/rhel-7-x86_64/pgdg-redhat{{ postgresql_version.short }}-{{ postgresql_version.series }}-{{ postgresql_version.repository }}.noarch.rpm"
     - name: Add PGroonga YUM repository
       yum:
-        name: "https://packages.groonga.org/centos/groonga-release-{{ groonga_version.repository }}.noarch.rpm"
+        name: "https://packages.groonga.org/centos/groonga-release-latest.noarch.rpm"
     - name: Install PostgreSQL
       yum:
         name: postgresql{{ postgresql_version.short }}-server
