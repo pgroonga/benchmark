@@ -31,8 +31,7 @@ SELECT '#{@table_name}'::regclass::oid;
 SELECT column_name, data_type, udt_name
   FROM information_schema.columns
  WHERE table_catalog = '#{@database_name}' AND
-       table_name = '#{@table_name}' AND
-       table_name::regclass::oid = '#{@table_name}'::regclass::oid
+       table_name = '#{@table_name}'
     SQL
     @columns = {}
     response.each_line do |line|
