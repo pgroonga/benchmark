@@ -30,8 +30,8 @@ SELECT '#{@table_name}'::regclass::oid;
     response = Psql.run(@database_name, <<-SQL)
 SELECT column_name, data_type, udt_name
   FROM information_schema.columns
- WHERE table_catalog = '#{@database_name}' AND
-       table_name = '#{@table_name}'
+ WHERE lower(table_catalog) = lower('#{@database_name}') AND
+       lower(table_name) = lower('#{@table_name}')
     SQL
     @columns = {}
     response.each_line do |line|
@@ -57,8 +57,7 @@ SELECT column_name
          constraint_name
        )
  WHERE constraint_type = 'PRIMARY KEY' AND
-       usage.table_name = '#{@table_name}' AND
-       usage.table_name::regclass::oid = '#{@table_name}'::regclass::oid
+       lower(usage.table_name) = lower('#{@table_name}')
     SQL
     @primary_key_names = response.split
   end
