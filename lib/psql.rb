@@ -62,7 +62,11 @@ class Psql
   end
 
   def execute(sql)
-    @output.puts(sql)
+    if sql.is_a?(IO)
+      IO.copy_stream(sql, @output)
+    else
+      @output.puts(sql)
+    end
     @output.flush
     read
   end
