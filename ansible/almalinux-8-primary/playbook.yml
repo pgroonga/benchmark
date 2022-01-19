@@ -109,6 +109,32 @@
       systemd:
         name: postgresql-{{ postgresql_version.series }}
         state: started
+    - name: Check vagrant user
+      become_user: postgres
+      shell: |
+        psql \
+          --no-align \
+          --tuples-only \
+          --command="SELECT * FROM pg_user WHERE usename = 'vagrant'"
+      args:
+        chdir: ~postgres
+      vars:
+        ansible_ssh_pipelining: true
+      register:
+        postgresql_vagrant_user
+    - name: Create vagrant user
+      become_user: postgres
+      shell: |
+        psql \
+          --no-align \
+          --tuples-only \
+          --command="CREATE ROLE vagrant WITH CREATEDB LOGIN"
+      args:
+        chdir: ~postgres
+      vars:
+        ansible_ssh_pipelining: true
+      register:
+      when: postgresql_vagrant_user.stdout == ""
     - name: Check replication user
       become_user: postgres
       shell: |
