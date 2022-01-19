@@ -1,0 +1,128 @@
+- hosts: servers
+  become: yes
+  vars:
+    postgresql_version:
+      series: 12
+    users:
+      - benchmark
+  tasks:
+    # Base
+    # - name: Upgrade packages
+    #   dnf:
+    #     name: "*"
+    #     state: latest
+    #     enablerepo:
+    #       - powertools
+    - name: Install epel-release on Red Hat Enterprise Linux
+      dnf:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+      when: ansible_distribution == "RedHat"
+    - name: Install packages
+      dnf:
+        name:
+          - git
+          - bzip2
+          - xz
+          - ruby
+          - vim
+
+    # Users
+    - name: Create users
+      user:
+        name: "{{ item }}"
+      with_items: "{{ users }}"
+
+    # PGroonga
+    - name: Add PostgreSQL YUM repository
+      dnf:
+        name: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+        disable_gpg_check: true
+    - name: Add PGroonga YUM repository
+      dnf:
+        name: "https://packages.groonga.org/almalinux/8/groonga-release-latest.noarch.rpm"
+        disable_gpg_check: true
+    - name: Disable PostgreSQL module
+      shell: |
+        dnf -y module disable postgresql
+    - name: Install PostgreSQL
+      dnf:
+        name: postgresql{{ postgresql_version.series }}-server
+      register: install_postgresql
+    - name: Put ~postgres/.pgpass
+      copy:
+        src: var/lib/pgsql/.pgpass
+        dest: /var/lib/pgsql/.pgpass
+        owner: postgres
+        group: postgres
+        mode: "0700"
+    - name: Initialize PostgreSQL database
+      become_user: postgres
+      shell: |
+        pg_basebackup \
+          --host 192.168.56.11 \
+          --user replicator \
+          --no-password \
+          --pgdata /var/lib/pgsql/{{ postgresql_version.series }}/data \
+          --wal-method=stream \
+          --write-recovery-conf
+      args:
+        chdir: ~postgres
+      vars:
+        ansible_ssh_pipelining: true
+      when: install_postgresql.changed
+    - name: Enable PostgreSQL
+      systemd:
+        name: postgresql-{{ postgresql_version.series }}
+        enabled: true
+    - name: Install PGroonga
+      dnf:
+        name:
+          - postgresql{{ postgresql_version.series }}-pgdg-pgroonga
+          - groonga
+        enablerepo:
+          - powertools
+    - name: Create additional PostgreSQL configurations directory
+      file:
+        path: /var/lib/pgsql/{{ postgresql_version.series }}/data/postgresql.conf.d/
+        state: directory
+        owner: postgres
+        group: postgres
+        mode: "0700"
+    - name: Put additional PostgreSQL configurations
+      copy:
+        src: var/lib/pgsql/{{ postgresql_version.series }}/data/postgresql.conf.d/{{ item }}
+        dest: /var/lib/pgsql/{{ postgresql_version.series }}/data/postgresql.conf.d/{{ item }}
+        owner: postgres
+        group: postgres
+        mode: "0700"
+      with_items:
+        - pgroonga.conf
+        - replication.conf
+      notify:
+        - Restart PostgreSQL
+    - name: Set vm.overcomit_memory to 1
+      copy:
+        src: etc/sysctl.d/groonga.conf
+        dest: /etc/sysctl.d/groonga.conf
+        mode: 0755
+        owner: root
+        group: root
+      notify:
+        - Apply sysctl
+
+    # Ruby libraries
+    - name: Install Ruby libraries
+      gem:
+        name: "{{ item }}"
+        state: latest
+        user_install: false
+      with_items:
+        - red-datasets
+
+  handlers:
+    - name: Apply sysctl
+      command: sysctl --system
+    - name: Restart PostgreSQL
+      systemd:
+        name: postgresql-{{ postgresql_version.series }}
+        state: restarted
