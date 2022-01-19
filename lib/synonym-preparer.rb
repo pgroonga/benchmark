@@ -1,4 +1,4 @@
-require_relative "psql"
+require_relative "pgroonga-benchmark/psql"
 
 class SynonymPreparer
   def initialize(database_name)
@@ -13,7 +13,7 @@ class SynonymPreparer
 
   private
   def prepare_schema
-    Psql.open(@database_name) do |psql|
+    PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
       psql.execute(<<-SQL)
 DROP TABLE IF EXISTS system_thesaurus;
       SQL
@@ -36,7 +36,7 @@ CREATE TABLE user_thesaurus (
   end
 
   def prepare_records
-    Psql.open(@database_name) do |psql|
+    PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
       IO.popen(["groonga-synonym-generate",
                 "--format", "pgroonga",
                 "--table", "system_thesaurus"]) do |input|
@@ -47,7 +47,7 @@ CREATE TABLE user_thesaurus (
   end
 
   def prepare_index
-    Psql.open(@database_name) do |psql|
+    PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
       psql.execute(<<-SQL)
 CREATE INDEX system_thesaurus_term_index
   ON system_thesaurus

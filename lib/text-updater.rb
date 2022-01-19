@@ -1,6 +1,6 @@
 require "datasets"
 
-require_relative "psql"
+require_relative "pgroonga-benchmark/psql"
 require_relative "schema"
 
 class TextUpdater
@@ -27,7 +27,7 @@ class TextUpdater
 
   private
   def collect_primary_key_values
-    Psql.open(@database_name) do |psql|
+    PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
       columns = @schema.primary_key_names.join(", ")
       response = psql.execute(<<-SQL)
 SELECT #{columns} FROM #{@table_name} LIMIT #{@n_records}
@@ -43,7 +43,7 @@ SELECT #{columns} FROM #{@table_name} LIMIT #{@n_records}
 
   def update_texts(primary_key_values)
     text_column = @schema.columns[@column_name]
-    Psql.open(@database_name) do |psql|
+    PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
       response = psql.execute("BEGIN;")
       primary_key_values.each do |record|
         text = next_text

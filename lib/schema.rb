@@ -1,4 +1,4 @@
-require_relative "psql"
+require_relative "pgroonga-benchmark/psql"
 require_relative "column"
 require_relative "pgroonga-index"
 
@@ -21,13 +21,13 @@ class Schema
 
   private
   def initialize_table_oid
-    @table_oid = Psql.run(@database_name, <<-SQL, type: :integer)
+    @table_oid = PGroongaBenchmark::Psql.run(<<-SQL, type: :integer, database: @database_name)
 SELECT '#{@table_name}'::regclass::oid;
     SQL
   end
 
   def initialize_columns
-    response = Psql.run(@database_name, <<-SQL)
+    response = PGroongaBenchmark::Psql.run(<<-SQL, database: @database_name)
 SELECT column_name, data_type, udt_name
   FROM information_schema.columns
  WHERE lower(table_catalog) = lower('#{@database_name}') AND
@@ -46,7 +46,7 @@ SELECT column_name, data_type, udt_name
   end
 
   def initialize_primary_key_names
-    response = Psql.run(@database_name, <<-SQL)
+    response = PGroongaBenchmark::Psql.run(<<-SQL, database: @database_name)
 SELECT column_name
   FROM information_schema.constraint_column_usage AS usage
        INNER JOIN
@@ -63,12 +63,15 @@ SELECT column_name
   end
 
   def initialize_pgroonga_indexes
-    @pgroonga_oid = Psql.run(@database_name, <<-SQL, type: :integer)
+    @pgroonga_oid =
+      PGroongaBenchmark::Psql.run(<<-SQL, type: :integer, database: @database_name)
 SELECT oid FROM pg_catalog.pg_am WHERE amname = 'pgroonga';
     SQL
 
-    @groonga_schema = Psql.run_groonga(@database_name, "schema")
-    pgroonga_indexes = Psql.run(@database_name, <<-SQL)
+    @groonga_schema =
+      PGroongaBenchmark::Psql.run_groonga("schema", database: @database_name)
+    pgroonga_indexes =
+      PGroongaBenchmark::Psql.run(<<-SQL, database: @database_name)
 SELECT indexrelid, relname
   FROM pg_catalog.pg_index
        INNER JOIN
@@ -81,9 +84,10 @@ SELECT indexrelid, relname
     pgroonga_indexes.each_line do |line|
       oid, name = line.chomp.split("|")
       oid = Integer(oid, 10)
-      groonga_table = Psql.run(@database_name,
-                               "SELECT pgroonga_table_name('#{name}')",
-                               type: :string)
+      groonga_table =
+        PGroongaBenchmark::Psql.run("SELECT pgroonga_table_name('#{name}')",
+                                    type: :string,
+                                    database: @database_name)
       groonga_schema = @groonga_schema["tables"][groonga_table]
       pgroonga_index = PGroongaIndex.new(oid,
                                          name,

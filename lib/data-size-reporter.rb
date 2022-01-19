@@ -3,7 +3,7 @@ require "fileutils"
 require "pathname"
 require "time"
 
-require_relative "psql"
+require_relative "pgroonga-benchmark/psql"
 require_relative "schema"
 
 class DataSizeReporter
@@ -114,11 +114,11 @@ class DataSizeReporter
   end
 
   def run_sql(sql, type: nil)
-    Psql.run(@database_name, sql, type: type)
+    PGroongaBenchmark::Psql.run(sql, type: type, database: @database_name)
   end
 
   def run_groonga(command)
-    Psql.run_groonga(@database_name, command)
+    PGroongaBenchmark::Psql.run_groonga(command, database: @database_name)
   end
 
   def groonga_disk_usage(name)

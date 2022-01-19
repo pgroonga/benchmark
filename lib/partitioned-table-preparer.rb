@@ -1,6 +1,6 @@
 require "datasets"
 
-require_relative "psql"
+require_relative "pgroonga-benchmark/psql"
 require_relative "schema"
 
 class PartitionedTablePreparer
@@ -24,7 +24,7 @@ class PartitionedTablePreparer
 
   private
   def prepare_schema
-    Psql.open(@database_name) do |psql|
+    PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
       psql.execute(<<-SQL)
 DROP TABLE IF EXISTS pages;
       SQL
@@ -41,7 +41,7 @@ CREATE TABLE pages (
 
   def prepare_records
     text_column = Column.new("name", "text")
-    Psql.open(@database_name) do |psql|
+    PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
       @wikipedia.each do |page|
         until page.id < @max_id
           start = @max_id

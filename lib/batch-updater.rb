@@ -1,7 +1,7 @@
 require "benchmark"
 require "csv"
 
-require_relative "psql"
+require_relative "pgroonga-benchmark/psql"
 require_relative "schema"
 
 class BatchUpdater
@@ -28,7 +28,7 @@ class BatchUpdater
   def update(nth_batch)
     open_data do |csv|
       elapsed = Benchmark.measure do
-        Psql.open(@database_name) do |psql|
+        PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
           update_records(csv, psql, nth_batch)
         end
       end
@@ -40,7 +40,7 @@ class BatchUpdater
 
     if @run_vacuum
       elapsed = Benchmark.measure do
-        Psql.open(@database_name) do |psql|
+        PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
           run_sql(psql, "VACUUM ANALYZE #{@table_name};");
           run_io_flush(psql)
           psql.finish
@@ -51,7 +51,7 @@ class BatchUpdater
 
     elapsed = Benchmark.measure do
       @schema.pgroonga_indexes.each do |name, _pgroonga_index|
-        Psql.open(@database_name) do |psql|
+        PGroongaBenchmark::Psql.open(database: @database_name) do |psql|
           run_sql(psql, "SELECT pgroonga_wal_truncate('#{name}');")
           run_io_flush(psql)
           psql.finish
