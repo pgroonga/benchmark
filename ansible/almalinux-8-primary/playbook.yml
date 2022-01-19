@@ -128,7 +128,7 @@
         psql \
           --no-align \
           --tuples-only \
-          --command="CREATE ROLE vagrant WITH CREATEDB LOGIN"
+          --command="CREATE ROLE vagrant WITH SUPERUSER LOGIN"
       args:
         chdir: ~postgres
       vars:
