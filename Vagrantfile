@@ -27,6 +27,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   n_cpus = Integer(n_cpus) if n_cpus
   memory = ENV["VM_MEMORY"] || 1024
   memory = Integer(memory) if memory
+  synced_folders = (ENV["VM_SYNCED_FOLDERS"] || "").split(",")
   vms.each do |vm|
     id = vm[:id]
     box = vm[:box]
@@ -45,6 +46,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         # ansible.raw_arguments  = [
         #   "-vvv",
         # ]
+      end
+      synced_folders.each do |synced_folder|
+        node.vm.synced_folder(*synced_folder.split(":", 2))
       end
       node.vm.network "private_network", ip: vm[:ip]
     end
