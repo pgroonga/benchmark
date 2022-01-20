@@ -1,6 +1,7 @@
 require "benchmark"
 require "yaml"
 
+require_relative "faker-source"
 require_relative "psql"
 require_relative "synonym-source"
 
@@ -124,6 +125,8 @@ CREATE DATABASE #{database}
         @config.logger.info("Processing: #{path}")
         data = YAML.load(File.read(path))
         case data["source"]
+        when "faker"
+          source = FakerSource.new(data["faker"])
         when "synonym"
           source = SynonymSource.new(data["synonym"])
         else

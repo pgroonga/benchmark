@@ -20,12 +20,10 @@
     - name: Install packages
       dnf:
         name:
-          - git
           - bzip2
-          - xz
-          - ruby
-          - rubygem-bundler
+          - git
           - vim
+          - xz
 
     # Users
     - name: Create users
@@ -162,6 +160,17 @@
       when: postgresql_replication_user.stdout == ""
 
     # Ruby libraries
+    - name: Install packages for Ruby
+      dnf:
+        name:
+          - gcc
+          - libffi-devel
+          - mecab
+          - mecab-devel
+          - mecab-ipadic
+          - ruby
+          - ruby-devel
+          - rubygem-bundler
     - name: Install Ruby libraries
       become_user: vagrant
       bundler:
