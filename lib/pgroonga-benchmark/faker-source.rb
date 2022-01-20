@@ -8,6 +8,7 @@ module PGroongaBenchmark
   class FakerSource
     def initialize(data)
       @data = data
+      @mecab = Natto::MeCab.new
     end
 
     def process(psql)
@@ -25,7 +26,7 @@ module PGroongaBenchmark
       when Hash
         n_records = rand(Range.new(n_records["min"], n_records["max"]))
       end
-      context = Context.new
+      context = Context.new(@mecab)
       n_records.round.times do |i|
         record = Record.new(context, config["columns"], parent)
         column_names = record.column_names
@@ -44,7 +45,9 @@ INSERT INTO #{table} (#{column_names.join(", ")})
     end
 
     class Context
-      def initialize
+      attr_reader :mecab
+      def initialize(mecab)
+        @mecab = mecab
         @counters = {}
       end
 
@@ -91,8 +94,7 @@ INSERT INTO #{table} (#{column_names.join(", ")})
 
       def katakanaize(value)
         katakana = ""
-        mecab = Natto::MeCab.new
-        mecab.parse(value) do |node|
+        context.mecab.parse(value) do |node|
           feature = node.feature.dup.force_encoding("UTF-8").split(",")
           part_of_speech = feature[0]
           break if part_of_speech == "BOS/EOS"
