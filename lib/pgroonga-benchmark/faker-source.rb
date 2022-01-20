@@ -26,7 +26,7 @@ module PGroongaBenchmark
         n_records = rand(Range.new(n_records["min"], n_records["max"]))
       end
       context = Context.new
-      n_records.times do |i|
+      n_records.round.times do |i|
         record = Record.new(context, config["columns"], parent)
         column_names = record.column_names
         values = column_names.collect do |name|
