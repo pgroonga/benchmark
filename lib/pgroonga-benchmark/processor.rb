@@ -1,6 +1,8 @@
 require "benchmark"
+require "yaml"
 
 require_relative "psql"
+require_relative "synonym-source"
 
 module PGroongaBenchmark
   class Processor
@@ -115,6 +117,21 @@ CREATE DATABASE #{database}
             File.open(path, encoding: "UTF-8") do |input|
               execute_sql(psql, input)
             end
+          end
+          @config.logger.info("Processed: #{path}: #{elapsed}")
+        end
+      when ".yaml"
+        @config.logger.info("Processing: #{path}")
+        data = YAML.load(File.read(path))
+        case data["source"]
+        when "synonym"
+          source = SynonymSource.new(data["synonym"])
+        else
+          raise "unsupported source: #{source}: #{path}"
+        end
+        open_psql do |psql|
+          elapsed = Benchmark.measure do
+            source.process(psql)
           end
           @config.logger.info("Processed: #{path}: #{elapsed}")
         end

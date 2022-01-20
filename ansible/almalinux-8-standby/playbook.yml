@@ -24,6 +24,7 @@
           - bzip2
           - xz
           - ruby
+          - rubygem-bundler
           - vim
 
     # Users
@@ -112,12 +113,12 @@
 
     # Ruby libraries
     - name: Install Ruby libraries
-      gem:
-        name: "{{ item }}"
-        state: latest
+      become_user: vagrant
+      bundler:
         user_install: false
-      with_items:
-        - red-datasets
+        chdir: /vagrant
+      vars:
+        ansible_ssh_pipelining: true
 
   handlers:
     - name: Apply sysctl

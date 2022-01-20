@@ -24,6 +24,7 @@
           - bzip2
           - xz
           - ruby
+          - rubygem-bundler
           - vim
 
     # Users
@@ -133,7 +134,6 @@
         chdir: ~postgres
       vars:
         ansible_ssh_pipelining: true
-      register:
       when: postgresql_vagrant_user.stdout == ""
     - name: Check replication user
       become_user: postgres
@@ -159,17 +159,16 @@
         chdir: ~postgres
       vars:
         ansible_ssh_pipelining: true
-      register:
       when: postgresql_replication_user.stdout == ""
 
     # Ruby libraries
     - name: Install Ruby libraries
-      gem:
-        name: "{{ item }}"
-        state: latest
+      become_user: vagrant
+      bundler:
         user_install: false
-      with_items:
-        - red-datasets
+        chdir: /vagrant
+      vars:
+        ansible_ssh_pipelining: true
 
   handlers:
     - name: Apply sysctl
