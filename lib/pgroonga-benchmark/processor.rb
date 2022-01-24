@@ -2,7 +2,7 @@ require "benchmark"
 require "yaml"
 
 require_relative "faker-source"
-require_relative "psql"
+require_relative "scenario-runner"
 require_relative "synonym-source"
 
 module PGroongaBenchmark
@@ -21,58 +21,44 @@ module PGroongaBenchmark
         @status.update("prepared" => true)
       end
 
-      search
+      list_paths(@config.scenario_dir).each do |path|
+        runner = ScenarioRunner.new(@config, path)
+        runner.run
+      end
     end
 
     private
-    def default_psql_options
-      {
-        host: @config.postgresql.host,
-        port: @config.postgresql.port,
-        user: @config.postgresql.user,
-        database: @config.postgresql.database,
-      }
-    end
-
-    def open_psql(**options, &block)
-      Psql.open(**default_psql_options.merge(options),
-                &block)
-    end
-
     def run_sql(sql, **options)
-      open_psql(**options) do |psql|
-        execute_sql(psql, sql)
+      @config.postgresql.open_connection(**options) do |connection|
+        execute_sql(connection, sql)
       end
     end
 
-    def execute_sql(psql, sql)
-      result = ""
+    def execute_sql(connection, sql, &block)
+      all_lines = ""
       sql.each_line do |line|
         @config.logger.debug("SQL: #{line}")
-        result << psql.execute(line)
+        all_lines << line
       end
-      result << psql.finish
-      result.each_line do |line|
-        @config.logger.debug("SQL result: #{line}")
-      end
-      result
+      connection.exec(all_lines, &block)
     end
 
     def ensure_database
       database = @config.postgresql.database
-      result = run_sql("SELECT * FROM pg_catalog.pg_database " +
-                       "WHERE datname = '#{database}';",
-                       database: "postgres")
-      return unless result.empty?
-      @config.logger.info("Creating database: #{database}")
-      run_sql(<<-SQL, database: "postgres")
+      run_sql("SELECT * FROM pg_catalog.pg_database " +
+              "WHERE datname = '#{database}';",
+              database: "postgres") do |result|
+        return unless result.empty?
+        @config.logger.info("Creating database: #{database}")
+        run_sql(<<-SQL, database: "postgres")
 CREATE DATABASE #{database}
   WITH TEMPLATE = 'template0'
        ENCODING = 'UTF8'
        LC_COLLATE = 'C.UTF-8'
        LC_CTYPE = 'C.UTF-8';
-      SQL
-      @config.logger.info("Created database: #{database}")
+        SQL
+        @config.logger.info("Created database: #{database}")
+      end
     end
 
     def list_paths(dir)
@@ -102,21 +88,15 @@ CREATE DATABASE #{database}
       end
     end
 
-    def search
-      list_paths(@config.select_dir).each do |path|
-        process_path(path)
-      end
-    end
-
     def process_path(path)
       extension = File.extname(path)
       case extension
       when ".sql"
         @config.logger.info("Processing: #{path}")
-        open_psql do |psql|
+        @config.postgresql.open_connection do |connection|
           elapsed = Benchmark.measure do
             File.open(path, encoding: "UTF-8") do |input|
-              execute_sql(psql, input)
+              execute_sql(connection, input)
             end
           end
           @config.logger.info("Processed: #{path}: #{elapsed}")
@@ -132,7 +112,7 @@ CREATE DATABASE #{database}
         else
           raise "unsupported source: #{source}: #{path}"
         end
-        open_psql do |psql|
+        @config.postgresql.open_connection do |psql|
           elapsed = Benchmark.measure do
             source.process(psql)
           end

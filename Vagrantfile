@@ -25,7 +25,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   n_cpus = ENV["VM_N_CPUS"] || 2
   n_cpus = Integer(n_cpus) if n_cpus
-  memory = ENV["VM_MEMORY"] || 1024
+  memory = ENV["VM_MEMORY"] || 4096
   memory = Integer(memory) if memory
   synced_folders = (ENV["VM_SYNCED_FOLDERS"] || "").split(",")
   vms.each do |vm|

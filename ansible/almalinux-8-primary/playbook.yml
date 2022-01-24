@@ -168,6 +168,7 @@
           - mecab
           - mecab-devel
           - mecab-ipadic
+          - postgresql{{ postgresql_version.series }}-server
           - ruby
           - ruby-devel
           - rubygem-bundler

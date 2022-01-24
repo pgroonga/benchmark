@@ -11,44 +11,77 @@ module PGroongaBenchmark
       @mecab = Natto::MeCab.new
     end
 
-    def process(psql)
+    def each_sql(&block)
       Faker::Config.locale = @data["locale"] if @data["locale"]
       @data["tables"].each do |table, config|
-        insert_records(psql, table, config)
+        generate_sqls(table, config, &block)
+      end
+    end
+
+    def process(psql)
+      each_sql do |sql|
+        psql.execute(sql)
       end
       psql.finish
     end
 
     private
-    def insert_records(psql, table, config, parent=nil)
+    def generate_sqls(table, config, parent=nil, &block)
       n_records = config["n_records"] || 1
       case n_records
       when Hash
         n_records = rand(Range.new(n_records["min"], n_records["max"]))
       end
-      context = Context.new(@mecab)
+      primary_keys = config["primary_keys"]
+      primary_keys = Array(primary_keys) if primary_keys
+      update_columns = config["update_columns"]
+      context = Context.new(@mecab, @data)
       n_records.round.times do |i|
         record = Record.new(context, config["columns"], parent)
         column_names = record.column_names
         values = column_names.collect do |name|
           SQLValue.new(record[name]).to_s
         end
-        psql.execute(<<-INSERT)
+        sql = <<-INSERT
 INSERT INTO #{table} (#{column_names.join(", ")})
   VALUES (#{values.join(", ")});
         INSERT
+        yield(sql)
+        if primary_keys and update_columns
+          update_record = Record.new(context, config["columns"], parent)
+          primary_key_values = primary_keys.collect do |name|
+            "#{name} = #{SQLValue.new(record[name])}"
+          end
+          update_values = update_columns.collect do |name|
+            "#{name} = #{SQLValue.new(update_record[name])}"
+          end
+          update = <<-UPDATE
+UPDATE #{table} SET #{update_values.join(", ")}
+  WHERE #{primary_key_values.join(" AND ")}
+          UPDATE
+          yield(update)
+        end
         sub_records = config["sub_records"] || {}
         (sub_records["tables"] || []).each do |sub_table, sub_config|
-          insert_records(psql, sub_table, sub_config, record)
+          generate_sqls(sub_table, sub_config, record, &block)
         end
       end
     end
 
     class Context
       attr_reader :mecab
-      def initialize(mecab)
+      def initialize(mecab, data)
         @mecab = mecab
+        @data = data
         @counters = {}
+      end
+
+      def nth_try
+        @data["nth_try"]
+      end
+
+      def nth_job
+        @data["nth_job"]
       end
 
       def counter(name)
@@ -89,7 +122,14 @@ INSERT INTO #{table} (#{column_names.join(", ")})
 
       private
       def evaluate(name)
-        instance_eval(@columns[name])
+        expression = @columns[name]
+        begin
+          instance_eval(expression)
+        rescue => error
+          $stderr.puts("#{error.class}: #{error}")
+          $stderr.puts(error.backtrace)
+          raise "Failed to evaluate: #{name}: #{expression}"
+        end
       end
 
       def katakanaize(value)

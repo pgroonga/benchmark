@@ -1,5 +1,6 @@
 require "fileutils"
 require "logger"
+require "pg"
 require "yaml"
 
 require_relative "ltsv-log-formatter"
@@ -70,8 +71,8 @@ module PGroongaBenchmark
       resolve_path(@data["index_dir"] || "index")
     end
 
-    def select_dir
-      resolve_path(@data["select_dir"] || "select")
+    def scenario_dir
+      resolve_path(@data["scenario_dir"] || "scenario")
     end
 
     def postgresql
@@ -111,8 +112,37 @@ module PGroongaBenchmark
         @data["user"] || ENV["PGUSER"] || Etc.getlogin
       end
 
+      def password
+        @data["password"]
+      end
+
       def database
         @data["database"] || ENV["PGDATABASE"] || user
+      end
+
+      def psql_options
+        {
+          host: host,
+          port: port,
+          user: user,
+          database: database,
+        }
+      end
+
+      def open_connection(**options)
+        default_options = {
+          host: host,
+          port: port,
+          user: user,
+          password: password,
+          dbname: database,
+        }
+        connection = PG.connect(default_options.merge(options))
+        begin
+          yield(connection)
+        ensure
+          connection.finish unless connection.finished?
+        end
       end
     end
   end
