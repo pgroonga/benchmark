@@ -4,6 +4,7 @@ require "pg"
 require "yaml"
 
 require_relative "ltsv-log-formatter"
+require_relative "psql"
 
 class Logger::LogDevice
   private
@@ -120,24 +121,25 @@ module PGroongaBenchmark
         @data["database"] || ENV["PGDATABASE"] || user
       end
 
-      def psql_options
-        {
-          host: host,
-          port: port,
-          user: user,
-          database: database,
+      def open_psql(**options, &block)
+        psql_options = {
+          host: options[:host] || host,
+          port: options[:port] || port,
+          user: options[:user] || user,
+          database: options[:database] || database,
         }
+        Psql.open(**psql_options, &block)
       end
 
       def open_connection(**options)
-        default_options = {
-          host: host,
-          port: port,
-          user: user,
-          password: password,
-          dbname: database,
+        pg_options = {
+          host: options[:host] || host,
+          port: options[:port] || port,
+          user: options[:user] || user,
+          password: options[:password] || password,
+          dbname: options[:database] || database,
         }
-        connection = PG.connect(default_options.merge(options))
+        connection = PG.connect(pg_options)
         begin
           yield(connection)
         ensure

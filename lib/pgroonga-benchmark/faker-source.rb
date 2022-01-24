@@ -18,11 +18,10 @@ module PGroongaBenchmark
       end
     end
 
-    def process(psql)
+    def process(connection)
       each_sql do |sql|
-        psql.execute(sql)
+        connection.exec(sql)
       end
-      psql.finish
     end
 
     private

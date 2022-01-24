@@ -28,9 +28,9 @@ module PGroongaBenchmark
     end
 
     private
-    def run_sql(sql, **options)
+    def run_sql(sql, **options, &block)
       @config.postgresql.open_connection(**options) do |connection|
-        execute_sql(connection, sql)
+        execute_sql(connection, sql, &block)
       end
     end
 
@@ -48,7 +48,7 @@ module PGroongaBenchmark
       run_sql("SELECT * FROM pg_catalog.pg_database " +
               "WHERE datname = '#{database}';",
               database: "postgres") do |result|
-        return unless result.empty?
+        return unless result.ntuples.zero?
         @config.logger.info("Creating database: #{database}")
         run_sql(<<-SQL, database: "postgres")
 CREATE DATABASE #{database}
@@ -107,16 +107,22 @@ CREATE DATABASE #{database}
         case data["source"]
         when "faker"
           source = FakerSource.new(data["faker"])
+          @config.postgresql.open_connection do |psql|
+            elapsed = Benchmark.measure do
+              source.process(psql)
+            end
+            @config.logger.info("Processed: #{path}: #{elapsed}")
+          end
         when "synonym"
           source = SynonymSource.new(data["synonym"])
+          @config.postgresql.open_psql do |psql|
+            elapsed = Benchmark.measure do
+              source.process(psql)
+            end
+            @config.logger.info("Processed: #{path}: #{elapsed}")
+          end
         else
           raise "unsupported source: #{source}: #{path}"
-        end
-        @config.postgresql.open_connection do |psql|
-          elapsed = Benchmark.measure do
-            source.process(psql)
-          end
-          @config.logger.info("Processed: #{path}: #{elapsed}")
         end
       else
         raise "unsupported extension: #{extension}: #{path}"
