@@ -10,16 +10,15 @@ module PGroongaBenchmark
       @synonyms_column = @data["synonyms_column"] || "synonyms"
     end
 
-    def process(psql)
-      output = Output.new(psql)
+    def each_sql
+      output = StringIO.new
       generator = GroongaSynonym::PGroongaGenerator.new(@source,
                                                         @table,
                                                         @term_column,
                                                         @synonyms_column,
                                                         output: output)
       generator.generate
-      output.finish
-      output.result
+      yield(output.string)
     end
 
     private

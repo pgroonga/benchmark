@@ -80,6 +80,15 @@ module PGroongaBenchmark
       @postgresql ||= PostgreSQL.new(@dir, @data["postgresql"] || {})
     end
 
+    def reference_postgresql
+      @reference_postgresql ||=
+        PostgreSQL.new(@dir, @data["reference_postgresql"] || {})
+    end
+
+    def test_crash_safe?
+      @data.fetch("test_crash_safe", false)
+    end
+
     private
     def create_logger
       path = log_path

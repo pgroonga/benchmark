@@ -18,12 +18,6 @@ module PGroongaBenchmark
       end
     end
 
-    def process(connection)
-      each_sql do |sql|
-        connection.exec(sql)
-      end
-    end
-
     private
     def generate_sqls(table, config, parent=nil, &block)
       n_records = config["n_records"] || 1

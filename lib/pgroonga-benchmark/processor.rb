@@ -1,6 +1,7 @@
 require "benchmark"
 require "yaml"
 
+require_relative "error"
 require_relative "faker-source"
 require_relative "scenario-runner"
 require_relative "synonym-source"
@@ -29,8 +30,111 @@ module PGroongaBenchmark
 
     private
     def run_sql(sql, **options, &block)
+      unless @config.test_crash_safe?
+        @config.postgresql.open_connection(**options) do |connection|
+          execute_sql(connection, sql, &block)
+        end
+      end
+
+      crashed = false
       @config.postgresql.open_connection(**options) do |connection|
+        backend_pid = connection.exec("SELECT pg_backend_pid();") do |result|
+          result[0]["pg_backend_pid"]
+        end
+        pid = spawn(Gem.ruby,
+                    "-e",
+                    "sleep(rand); Process.kill(:KILL, #{backend_pid})",
+                    err: File::NULL)
+        begin
+          execute_sql(connection, sql, &block)
+        rescue PG::Error
+          crashed = true
+        end
+        Process.waitpid(pid)
+      end
+
+      expected_dumps = []
+      @config.reference_postgresql.open_connection(**options) do |connection|
+        if crashed
+          expected_dumps << dump_pgroonga_content(connection)
+        end
+        execute_sql(connection, sql) {}
+        if crashed
+          expected_dumps << dump_pgroonga_content(connection)
+        end
+      end
+      return unless crashed
+
+      loop do
+        begin
+          @config.postgresql.open_connection(**options) do |connection|
+          end
+        rescue PG::Error
+          sleep(0.01)
+        else
+          break
+        end
+      end
+      actual_dumps = []
+      @config.postgresql.open_connection(**options) do |connection|
+        actual_dumps << dump_pgroonga_content(connection)
         execute_sql(connection, sql, &block)
+        actual_dumps << dump_pgroonga_content(connection)
+      end
+      verify_database(expected_dumps, actual_dumps)
+    end
+
+    def dump_pgroonga_content(connection)
+      dump = ""
+      pgroonga_table_names = []
+      table_name_map = {}
+      connection.exec("SELECT oid, relname FROM pg_catalog.pg_class " +
+                      " WHERE relam IN " +
+                      "         (SELECT oid FROM pg_catalog.pg_am " +
+                      "           WHERE amname = 'pgroonga')") do |result|
+        result.each do |row|
+          oid = row["oid"]
+          name = row["relname"]
+          pgroonga_table_names << "pgroonga_table_name('#{name}')"
+          table_name_map["Sources#{oid}"] = name
+        end
+      end
+      pgroonga_table_names = pgroonga_table_names.sort.join(" || ', ' || ")
+      connection.exec("SELECT pgroonga_command(" +
+                      "  'dump', " +
+                      "  ARRAY[" +
+                      "    'dump_plugins', 'no'," +
+                      "    'dump_schema', 'no'," +
+                      "    'dump_indexes', 'no'," +
+                      "    'dump_configs', 'no'," +
+                      "    'sort_hash_table', 'yes'," +
+                      "    'tables', #{pgroonga_table_names}" +
+                      "  ]" +
+                      ") AS dump") do |result|
+        result[0]["dump"].each_line do |line|
+          if line.start_with?("load --table")
+            line = line.gsub(/Sources\d+/) do |table_name|
+              table_name_map[table_name] || table_name
+            end
+          end
+          dump << line
+        end
+      end
+      dump
+    end
+
+    def verify_pgroonga_indexes(connection)
+      # TODO
+    end
+
+    def verify_database(expected_dumps, actual_dumps)
+      if (actual_dumps & expected_dumps).empty?
+        raise VerifyError.new("PGroonga data is different",
+                              actual_dumps: actual_dumps,
+                              expected_dumps: expected_dumps)
+      end
+      @config.postgresql.open_connection do |connection|
+        verify_pgroonga_indexes(connection)
       end
     end
 
@@ -93,37 +197,39 @@ CREATE DATABASE #{database}
       case extension
       when ".sql"
         @config.logger.info("Processing: #{path}")
-        @config.postgresql.open_connection do |connection|
-          elapsed = Benchmark.measure do
-            File.open(path, encoding: "UTF-8") do |input|
-              execute_sql(connection, input)
-            end
+        elapsed = Benchmark.measure do
+          File.open(path, encoding: "UTF-8") do |input|
+            run_sql(input.read)
           end
-          @config.logger.info("Processed: #{path}: #{elapsed}")
         end
+        @config.logger.info("Processed: #{path}: #{elapsed}")
       when ".yaml"
         @config.logger.info("Processing: #{path}")
         data = YAML.load(File.read(path))
         case data["source"]
         when "faker"
           source = FakerSource.new(data["faker"])
-          @config.postgresql.open_connection do |psql|
-            elapsed = Benchmark.measure do
-              source.process(psql)
-            end
-            @config.logger.info("Processed: #{path}: #{elapsed}")
-          end
         when "synonym"
           source = SynonymSource.new(data["synonym"])
-          @config.postgresql.open_psql do |psql|
-            elapsed = Benchmark.measure do
-              source.process(psql)
-            end
-            @config.logger.info("Processed: #{path}: #{elapsed}")
-          end
         else
           raise "unsupported source: #{source}: #{path}"
         end
+        if @config.test_crash_safe?
+          elapsed = Benchmark.measure do
+            source.each_sql do |sql|
+              run_sql(sql)
+            end
+          end
+        else
+          elapsed = Benchmark.measure do
+            @config.postgresql.open_connection do |connection|
+              source.each_sql do |sql|
+                execute_sql(connection, sql)
+              end
+            end
+          end
+        end
+        @config.logger.info("Processed: #{path}: #{elapsed}")
       else
         raise "unsupported extension: #{extension}: #{path}"
       end
