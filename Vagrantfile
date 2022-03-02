@@ -37,6 +37,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         virtual_box.cpus = n_cpus if n_cpus
         virtual_box.memory = memory if memory
       end
+      node.vm.provision("shell", inline: "sudo dnf install -y python3")
       node.vm.provision("ansible") do |ansible|
         ansible.playbook = "ansible/#{id}/playbook.yml"
         ansible.groups = {
