@@ -148,16 +148,6 @@ SELECT indexrelid, indnkeyatts
         end
       end
       pgroonga_index_names.each do |index_name|
-        exist = connection.exec(<<-SQL) do |result|
-SELECT pgroonga_command('object_exist',
-                        ARRAY[
-                          'name', #{index_name}
-                        ]) AS object_exist
-        SQL
-          JSON.parse(result[0]["object_exist"])[1]
-        end
-        next unless exist
-
         connection.exec(<<-SQL) do |result|
 SELECT pgroonga_command('index_column_diff',
                         ARRAY[
@@ -167,6 +157,7 @@ SELECT pgroonga_command('index_column_diff',
         SQL
           response = JSON.parse(result[0]["index_column_diff"])
           unless response[0][0].zero?
+            break if response[0][3].include?("column doesn't exist")
             raise VerifyError.new("failed to run index_column_diff",
                                   index_column_name: index_name,
                                   index_column_diff: response)
