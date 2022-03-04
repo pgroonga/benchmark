@@ -90,8 +90,8 @@ module PGroongaBenchmark
         puts("#{name}:")
         puts("  Median: %.3fs" % median)
         puts("    Mean: %.3fs" % mean)
-        puts(" 90%tile: %.3fs" % percentile_90)
-        puts(" 95%tile: %.3fs" % percentile_95)
+        puts(" 90%%tile: %.3fs" % percentile_90)
+        puts(" 95%%tile: %.3fs" % percentile_95)
         puts("     Min: %.3fs" % min)
         puts("     Max: %.3fs" % max)
       end
