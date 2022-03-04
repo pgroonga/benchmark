@@ -158,12 +158,12 @@ SELECT pgroonga_command('index_column_diff',
           response = JSON.parse(result[0]["index_column_diff"])
           unless response[0][0].zero?
             raise VerifyError.new("failed to run index_column_diff",
-                                  index_colum_name: index_name,
+                                  index_column_name: index_name,
                                   index_column_diff: response)
           end
           unless response[1].empty?
             raise VerifyError.new("index is broken",
-                                  index_colum_name: index_name,
+                                  index_column_name: index_name,
                                   index_column_diff: response)
           end
         end
