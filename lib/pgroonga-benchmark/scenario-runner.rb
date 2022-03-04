@@ -73,12 +73,17 @@ module PGroongaBenchmark
         elapsed_times = statistics.collect do |_, _, elapsed_time|
           elapsed_time
         end
-        median = elapsed_times.sort[elapsed_times.size / 2]
+        elapsed_times = elapsed_times.sort
+        median = elapsed_times[elapsed_times.size / 2]
         mean = elapsed_times.sum / elapsed_times.size.to_f
+        percentile_90 = elapsed_times[(elapsed_times.size * 0.9).ceil]
+        percentile_95 = elapsed_times[(elapsed_times.size * 0.95).ceil]
         min, max = elapsed_times.minmax
         puts("#{name}:")
         puts("  Median: %.3fs" % median)
         puts("    Mean: %.3fs" % mean)
+        puts(" 90%tile: %.3fs" % percentile_90)
+        puts(" 95%tile: %.3fs" % percentile_95)
         puts("     Min: %.3fs" % min)
         puts("     Max: %.3fs" % max)
       end
