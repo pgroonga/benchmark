@@ -63,7 +63,6 @@ module PGroongaBenchmark
           expected_dumps << dump_pgroonga_content(connection)
         end
       end
-      return unless crashed
 
       loop do
         begin
@@ -75,6 +74,9 @@ module PGroongaBenchmark
           break
         end
       end
+
+      return unless crashed
+
       actual_dumps = []
       @config.postgresql.open_connection(**options) do |connection|
         actual_dumps << dump_pgroonga_content(connection)
