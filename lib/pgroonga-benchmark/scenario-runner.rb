@@ -44,7 +44,15 @@ module PGroongaBenchmark
               queue << sql_job
             end
           else
-            queue << SQLJob.new(job, @path)
+            n = job["n"]
+            if n
+              n.times do |i|
+                queue << SQLJob.new(job.merge("i" => i),
+                                    @path)
+              end
+            else
+              queue << SQLJob.new(job, @path)
+            end
           end
         end
       end
