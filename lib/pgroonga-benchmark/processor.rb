@@ -126,7 +126,48 @@ module PGroongaBenchmark
     end
 
     def verify_pgroonga_indexes(connection)
-      # TODO
+      pgroonga_index_names = []
+      connection.exec(<<-SQL) do |result|
+SELECT indexrelid, indnkeyatts
+  FROM pg_catalog.pg_index
+ WHERE indexrelid IN (
+         SELECT oid
+           FROM pg_catalog.pg_class
+          WHERE relam IN (
+                  SELECT oid
+                    FROM pg_catalog.pg_am
+                   WHERE amname = 'pgroonga'))
+      SQL
+        result.each do |row|
+          oid = row["indexrelid"]
+          n_key_attributes = Integer(row["indnkeyatts"], 10)
+          n_key_attributes.times do |i|
+            pgroonga_index_names <<
+              "pgroonga_index_column_name(#{oid}::regclass::text::cstring, #{i})"
+          end
+        end
+      end
+      pgroonga_index_names.each do |index_name|
+        connection.exec(<<-SQL) do |result|
+SELECT pgroonga_command('index_column_diff',
+                        ARRAY[
+                          'table', split_part(#{index_name}, '.', 1),
+                          'name', split_part(#{index_name}, '.', 2)
+                        ]) AS index_column_diff
+        SQL
+          response = JSON.parse(result[0]["index_column_diff"])
+          unless response[0][0].zero?
+            raise VerifyError.new("failed to run index_column_diff",
+                                  index_colum_name: index_name,
+                                  index_column_diff: response)
+          end
+          unless response[1].empty?
+            raise VerifyError.new("index is broken",
+                                  index_colum_name: index_name,
+                                  index_column_diff: response)
+          end
+        end
+      end
     end
 
     def verify_database(expected_dumps, actual_dumps)
