@@ -4,6 +4,7 @@ require "yaml"
 require_relative "error"
 require_relative "faker-source"
 require_relative "scenario-runner"
+require_relative "sql-source"
 require_relative "synonym-source"
 
 module PGroongaBenchmark
@@ -29,11 +30,22 @@ module PGroongaBenchmark
     end
 
     private
-    def run_sql(sql, **options, &block)
+    def run_sql(sql, test_crash_safe: nil, **options, &block)
       unless @config.test_crash_safe?
         @config.postgresql.open_connection(**options) do |connection|
           execute_sql(connection, sql, &block)
         end
+      end
+
+      test_crash_safe = true if test_crash_safe.nil?
+      unless test_crash_safe
+        @config.postgresql.open_connection(**options) do |connection|
+          execute_sql(connection, sql, &block)
+        end
+        @config.reference_postgresql.open_connection(**options) do |connection|
+          execute_sql(connection, sql, &block)
+        end
+        return
       end
 
       crashed = false
@@ -253,6 +265,8 @@ CREATE DATABASE #{database}
         case data["source"]
         when "faker"
           source = FakerSource.new(data["faker"])
+        when "sql"
+          source = SQLSource.new(data["sql"])
         when "synonym"
           source = SynonymSource.new(data["synonym"])
         else
@@ -260,8 +274,8 @@ CREATE DATABASE #{database}
         end
         if @config.test_crash_safe?
           elapsed = Benchmark.measure do
-            source.each_sql do |sql|
-              run_sql(sql)
+            source.each_sql do |sql, options|
+              run_sql(sql, **(options || {}))
             end
           end
         else

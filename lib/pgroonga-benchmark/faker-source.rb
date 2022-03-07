@@ -39,7 +39,10 @@ module PGroongaBenchmark
 INSERT INTO #{table} (#{column_names.join(", ")})
   VALUES (#{values.join(", ")});
         INSERT
-        yield(sql)
+        options = {
+          test_crash_safe: config["test_crash_safe"],
+        }
+        yield(sql, options)
         if primary_keys and update_columns
           update_record = Record.new(context, config["columns"], parent)
           primary_key_values = primary_keys.collect do |name|
