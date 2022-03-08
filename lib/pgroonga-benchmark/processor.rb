@@ -124,15 +124,23 @@ module PGroongaBenchmark
                       "    'dump_schema', 'no'," +
                       "    'dump_indexes', 'no'," +
                       "    'dump_configs', 'no'," +
-                      "    'sort_hash_table', 'yes'," +
                       "    'tables', #{pgroonga_table_names}" +
                       "  ]" +
                       ") AS dump") do |result|
+        in_load = false
         result[0]["dump"].each_line do |line|
-          if line.start_with?("load --table")
+          case line.chomp
+          when /\Aload --table/
+            in_load = true
             line = line.gsub(/Sources\d+/) do |table_name|
               table_name_map[table_name] || table_name
             end
+          when /\A\[/
+            if in_load
+              line = line.gsub(/\A\[(?:"_key"|\d+),/, "[")
+            end
+          when "]"
+            in_load = false
           end
           dump << line
         end
