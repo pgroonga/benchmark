@@ -89,6 +89,10 @@ module PGroongaBenchmark
       @data.fetch("test_crash_safe", false)
     end
 
+    def crash_ratio
+      Float(@data["crash_ratio"] || 1.0)
+    end
+
     private
     def create_logger
       path = log_path
