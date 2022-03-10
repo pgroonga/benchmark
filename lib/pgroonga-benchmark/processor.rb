@@ -58,7 +58,8 @@ module PGroongaBenchmark
         end
         pid = spawn(Gem.ruby,
                     "-e",
-                    "sleep(rand); Process.kill(:KILL, #{backend_pid})",
+                    "sleep(rand(#{@config.crash_delay})); " +
+                    "Process.kill(:KILL, #{backend_pid})",
                     err: File::NULL)
         begin
           execute_sql(connection, sql, &block)

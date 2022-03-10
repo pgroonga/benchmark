@@ -93,6 +93,10 @@ module PGroongaBenchmark
       Float(@data["crash_ratio"] || 1.0)
     end
 
+    def crash_delay
+      Float(@data["crash_delay"] || 1.0)
+    end
+
     private
     def create_logger
       path = log_path
