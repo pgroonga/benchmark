@@ -173,6 +173,11 @@
           - ruby
           - ruby-devel
           - rubygem-bundler
+    - name: Set pg_config path for bundler
+      become_user: vagrant
+      shell: |
+        bundle config build.pg \
+          --with-pg-config=/usr/pgsql-{{ postgresql_version.series }}/bin/pg_config
     - name: Install Ruby libraries
       become_user: vagrant
       bundler:
