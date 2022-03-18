@@ -178,6 +178,8 @@
       shell: |
         bundle config build.pg \
           --with-pg-config=/usr/pgsql-{{ postgresql_version.series }}/bin/pg_config
+      vars:
+        ansible_ssh_pipelining: true
     - name: Install Ruby libraries
       become_user: vagrant
       bundler:
