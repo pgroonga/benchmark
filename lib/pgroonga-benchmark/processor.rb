@@ -35,6 +35,7 @@ module PGroongaBenchmark
         @config.postgresql.open_connection(**options) do |connection|
           execute_sql(connection, sql, &block)
         end
+        return
       end
 
       test_crash_safe = true if test_crash_safe.nil?
