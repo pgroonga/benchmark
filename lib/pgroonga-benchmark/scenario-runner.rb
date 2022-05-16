@@ -14,7 +14,7 @@ module PGroongaBenchmark
     end
 
     def run
-      data = YAML.safe_load(File.read(@path), [], [], true)
+      data = YAML.safe_load(File.read(@path), aliases: true)
       setup = (data["setup"] || [])
       unless setup.empty?
         @config.postgresql.open_connection do |connection|
