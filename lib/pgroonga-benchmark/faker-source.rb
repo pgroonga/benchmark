@@ -37,7 +37,8 @@ module PGroongaBenchmark
         end
         sql = <<-INSERT
 INSERT INTO #{table} (#{column_names.join(", ")})
-  VALUES (#{values.join(", ")});
+  VALUES (#{values.join(", ")})
+  ON CONFLICT DO NOTHING;
         INSERT
         options = {
           test_crash_safe: config["test_crash_safe"],
@@ -53,7 +54,7 @@ INSERT INTO #{table} (#{column_names.join(", ")})
           end
           update = <<-UPDATE
 UPDATE #{table} SET #{update_values.join(", ")}
-  WHERE #{primary_key_values.join(" AND ")}
+  WHERE #{primary_key_values.join(" AND ")};
           UPDATE
           yield(update)
         end
