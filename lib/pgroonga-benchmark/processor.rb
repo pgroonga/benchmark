@@ -106,7 +106,6 @@ module PGroongaBenchmark
     end
 
     def dump_pgroonga_content(connection)
-      dump = ""
       pgroonga_table_names = []
       table_name_map = {}
       connection.exec("SELECT oid, relname FROM pg_catalog.pg_class " +
@@ -120,6 +119,9 @@ module PGroongaBenchmark
           table_name_map["Sources#{oid}"] = name
         end
       end
+      return "" if pgroonga_table_names.empty?
+
+      dump = ""
       pgroonga_table_names = pgroonga_table_names.sort.join(" || ', ' || ")
       connection.exec("SELECT pgroonga_command(" +
                       "  'dump', " +
