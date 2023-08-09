@@ -86,6 +86,7 @@ module PGroongaBenchmark
       loop do
         begin
           @config.postgresql.open_connection(**options) do |connection|
+            execute_sql(connection, "SELECT pgroonga_command('status');")
           end
         rescue PG::Error
           sleep(0.01)
