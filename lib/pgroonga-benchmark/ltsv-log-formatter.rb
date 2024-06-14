@@ -6,7 +6,7 @@ module PGroongaBenchmark
         timestamp: time.strftime("%Y-%m-%dT%H:%M:%S.%N"),
         pid: Process.pid,
       }
-      formatted = ""
+      formatted = +""
       backtrace = nil
       case message
       when String

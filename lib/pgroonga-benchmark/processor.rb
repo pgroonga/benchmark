@@ -213,7 +213,7 @@ SELECT pgroonga_command('index_column_diff',
     end
 
     def execute_sql(connection, sql, &block)
-      all_lines = ""
+      all_lines = +""
       sql.each_line do |line|
         @config.logger.debug("SQL: #{line}")
         all_lines << line
