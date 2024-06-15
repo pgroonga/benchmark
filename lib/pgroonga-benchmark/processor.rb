@@ -83,12 +83,17 @@ module PGroongaBenchmark
         end
       end
 
+      timeout = 5
+      deadline = Time.now + timeout
       loop do
         begin
           @config.postgresql.open_connection(**options) do |connection|
             execute_sql(connection, "SELECT pgroonga_command('status');")
           end
-        rescue PG::Error
+        rescue PG::ConnectionBad, PG::CannotConnectNow
+          if Time.now > deadline
+            raise ConnectionError.new("failed to connect in #{timeout} seconds")
+          end
           sleep(0.01)
         else
           break

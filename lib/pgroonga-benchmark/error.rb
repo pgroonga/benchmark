@@ -2,6 +2,9 @@ module PGroongaBenchmark
   class Error < StandardError
   end
 
+  class ConnectionError < Error
+  end
+
   class VerifyError < Error
     attr_reader :actual_dumps
     attr_reader :expected_dumps
