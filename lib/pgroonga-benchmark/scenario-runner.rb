@@ -106,7 +106,8 @@ module PGroongaBenchmark
       end
 
       def each_sql_job
-        case @data["source"]
+        source = @data["source"]
+        case source
         when "faker"
           source = FakerSource.new(@data["faker"].merge("nth_try" => @nth_try,
                                                         "nth_job" => @nth_job))

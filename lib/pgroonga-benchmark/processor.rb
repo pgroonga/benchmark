@@ -285,7 +285,8 @@ CREATE DATABASE #{database}
       when ".yaml"
         @config.logger.info("Processing: #{path}")
         data = YAML.load(File.read(path))
-        case data["source"]
+        source = data["source"]
+        case source
         when "faker"
           source = FakerSource.new(data["faker"])
         when "sql"
