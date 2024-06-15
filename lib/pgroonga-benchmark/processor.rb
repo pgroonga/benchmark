@@ -127,7 +127,7 @@ module PGroongaBenchmark
       end
       return "" if pgroonga_table_names.empty?
 
-      dump = ""
+      dump = +""
       pgroonga_table_names = pgroonga_table_names.sort.join(" || ', ' || ")
       connection.exec("SELECT pgroonga_command(" +
                       "  'dump', " +
