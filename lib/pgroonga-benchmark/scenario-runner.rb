@@ -111,6 +111,9 @@ module PGroongaBenchmark
         when "faker"
           source = FakerSource.new(@data["faker"].merge("nth_try" => @nth_try,
                                                         "nth_job" => @nth_job))
+        when "wikipedia"
+          source = WikipediaSource.new(@data["wikipedia"].merge("nth_try" => @nth_try,
+                                                                "nth_job" => @nth_job))
         else
           raise "unsupported source for job: #{source}: #{@path}"
         end
