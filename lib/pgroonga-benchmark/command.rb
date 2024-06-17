@@ -8,12 +8,14 @@ module PGroongaBenchmark
   class Command
     def initialize
       @dir = "."
+      @builtin_benchmark = nil
     end
 
     def run(args)
       catch do |tag|
         parse_args(args, tag)
         config = Config.new(@dir)
+        config.use_builtin_benchmark(@builtin_benchmark) if @builtin_benchmark
         begin
           status = Status.new(@dir)
           processor = Processor.new(config, status)
@@ -33,6 +35,10 @@ module PGroongaBenchmark
                 "Use DIR as directory that has configuration files",
                 "(#{@dir})") do |dir|
         @dir = dir
+      end
+      parser.on("--builtin-benchmark=BENCHMARK",
+                "Use builtin BENCHMARK") do |benchmark|
+        @builtin_benchmark = benchmark
       end
       parser.on("--version",
                 "Show version and exit") do

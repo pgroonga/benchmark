@@ -1,0 +1,13 @@
+jobs:
+  - name: insert
+    source: wikipedia
+    wikipedia:
+      language: en
+      tables:
+        pages:
+          n_records: 10000
+          columns:
+            title: |-
+              page.title
+            content: |-
+              page.revision.text

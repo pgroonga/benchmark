@@ -36,6 +36,15 @@ module PGroongaBenchmark
       end
     end
 
+    def use_builtin_benchmark(benchmark)
+      base_dir =
+        File.expand_path(File.join(__dir__, "..", "..", "benchmark", benchmark))
+      @data["schema_dir"] = File.join(base_dir, "schema")
+      @data["data_dir"] = File.join(base_dir, "data")
+      @data["index_dir"] = File.join(base_dir, "index")
+      @data["scenario_dir"] = File.join(base_dir, "scenario")
+    end
+
     def logger
       @logger ||= create_logger
     end
