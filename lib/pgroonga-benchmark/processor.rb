@@ -6,6 +6,7 @@ require_relative "faker-source"
 require_relative "scenario-runner"
 require_relative "sql-source"
 require_relative "synonym-source"
+require_relative "wikipedia-source"
 
 module PGroongaBenchmark
   class Processor
@@ -293,6 +294,8 @@ CREATE DATABASE #{database}
           source = SQLSource.new(data["sql"])
         when "synonym"
           source = SynonymSource.new(data["synonym"])
+        when "wikipedia"
+          source = WikipediaSource.new(data["wikipedia"])
         else
           raise "unsupported source: #{source}: #{path}"
         end

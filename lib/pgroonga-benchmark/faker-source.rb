@@ -2,6 +2,7 @@ require "faker"
 require "natto"
 require "romaji"
 
+require_relative "record"
 require_relative "sql-value"
 
 module PGroongaBenchmark
@@ -28,9 +29,9 @@ module PGroongaBenchmark
       primary_keys = config["primary_keys"]
       primary_keys = Array(primary_keys) if primary_keys
       update_columns = config["update_columns"]
-      context = Context.new(@mecab, @data)
+      context = FakerContext.new(@data, @mecab)
       n_records.round.times do |i|
-        record = Record.new(context, config["columns"], parent)
+        record = FakerRecord.new(context, config["columns"], parent)
         column_names = record.column_names
         values = column_names.collect do |name|
           SQLValue.new(record[name]).to_s
@@ -45,7 +46,7 @@ INSERT INTO #{table} (#{column_names.join(", ")})
         }
         yield(sql, options)
         if primary_keys and update_columns
-          update_record = Record.new(context, config["columns"], parent)
+          update_record = FakerRecord.new(context, config["columns"], parent)
           primary_key_values = primary_keys.collect do |name|
             "#{name} = #{SQLValue.new(record[name])}"
           end
@@ -65,70 +66,16 @@ UPDATE #{table} SET #{update_values.join(", ")}
       end
     end
 
-    class Context
+    class FakerContext < Context
       attr_reader :mecab
-      def initialize(mecab, data)
+      def initialize(data, mecab)
+        super(data)
         @mecab = mecab
-        @data = data
-        @counters = {}
-      end
-
-      def nth_try
-        @data["nth_try"]
-      end
-
-      def nth_job
-        @data["nth_job"]
-      end
-
-      def counter(name)
-        @counters[name] ||= Counter.new
       end
     end
 
-    class Counter
-      def initialize
-        @current = 0
-      end
-
-      def next
-        value = @current
-        @current += 1
-        value
-      end
-    end
-
-    class Record
-      attr_reader :context
-      attr_reader :parent
-      def initialize(context, columns, parent)
-        @context = context
-        @columns = columns
-        @parent = parent
-        @values = {}
-      end
-
-      def [](name)
-        name = name.to_s
-        @values[name] ||= evaluate(name)
-      end
-
-      def column_names
-        @columns.keys
-      end
-
+    class FakerRecord < Record
       private
-      def evaluate(name)
-        expression = @columns[name]
-        begin
-          instance_eval(expression)
-        rescue => error
-          $stderr.puts("#{error.class}: #{error}")
-          $stderr.puts(error.backtrace)
-          raise "Failed to evaluate: #{name}: #{expression}"
-        end
-      end
-
       def katakanaize(value)
         katakana = ""
         context.mecab.parse(value) do |node|
