@@ -16,6 +16,24 @@ end
 
 module PGroongaBenchmark
   class Config
+    class << self
+      def integer_value(data, env_key, value_key, default)
+        value = nil
+        env_name = data[env_key]
+        if env_name
+          value = ENV[env_name]
+          if value
+            begin
+              value = Integer(value, 10)
+            rescue ArgumentError
+              value = nil
+            end
+          end
+        end
+        value || data[value_key] || default
+      end
+    end
+
     module PathResolvable
       private
       def resolve_path(path)

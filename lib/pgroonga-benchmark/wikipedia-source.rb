@@ -19,7 +19,10 @@ module PGroongaBenchmark
 
     private
     def generate_sqls(table, config, parent=nil, &block)
-      n_records = config["n_records"] || 1_000
+      n_records = Config.integer_value(config,
+                                       "n_records_env",
+                                       "n_records",
+                                       1_000)
       case n_records
       when Hash
         n_records = rand(Range.new(n_records["min"], n_records["max"]))

@@ -5,6 +5,7 @@ jobs:
       language: en
       tables:
         pages:
+          n_records_env: WIKIPEDIA_INSERT_N_PAGES
           n_records: 10000
           columns:
             title: |-
