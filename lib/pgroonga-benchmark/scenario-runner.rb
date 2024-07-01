@@ -10,6 +10,7 @@ module PGroongaBenchmark
       @config = config
       @path = path
       @mutex = Thread::Mutex.new
+      @condition_variable = Thread::ConditionVariable.new
       @statistics = []
     end
 
@@ -34,8 +35,12 @@ module PGroongaBenchmark
               process_job(connection, job)
             end
           end
+          @mutex.synchronize do
+            @condition_variable.signal
+          end
         end
       end
+      n_jobs = 0
       (data["n_tries"] || 1).times do |nth_try|
         data["jobs"].each_with_index do |job, nth_job, |
           if job["source"]
@@ -43,6 +48,7 @@ module PGroongaBenchmark
             source_job.each_sql_job do |sql_job|
               queue << sql_job
             end
+            n_jobs += 1
           else
             n = job["n"]
             if n
@@ -50,8 +56,10 @@ module PGroongaBenchmark
                 queue << SQLJob.new(job.merge("i" => i),
                                     @path)
               end
+              n_jobs += n
             else
               queue << SQLJob.new(job, @path)
+              n_jobs += 1
             end
           end
         end
@@ -59,7 +67,17 @@ module PGroongaBenchmark
       n_workers.times do
         queue << nil
       end
-      threads.each(&:join)
+      loop do
+        threads.delete_if(&:alive?)
+        break if threads.empty?
+        n_remained_jobs = queue.size - n_workers
+        break if n_remained_jobs.zero?
+        @mutex.synchronize do
+          @condition_variable.wait(@mutex)
+        end
+        yield(n_jobs, n_remained_jobs) if block_given?
+      end
+      yield(n_jobs, 0) if block_given?
       report
     end
 
@@ -70,6 +88,7 @@ module PGroongaBenchmark
       end
       @mutex.synchronize do
         @statistics << [job.name, job.i, elapsed_time.real]
+        @condition_variable.signal
       end
     end
 

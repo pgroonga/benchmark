@@ -13,9 +13,10 @@ module PGroongaBenchmark
     def initialize(config, status)
       @config = config
       @status = status
+      @scenario_progress = nil
     end
 
-    def process
+    def process(&scenario_progress)
       unless @status["prepared"]
         ensure_database
         define_schema
@@ -26,7 +27,7 @@ module PGroongaBenchmark
 
       list_paths(@config.scenario_dir).each do |path|
         runner = ScenarioRunner.new(@config, path)
-        runner.run
+        runner.run(&scenario_progress)
       end
     end
 
