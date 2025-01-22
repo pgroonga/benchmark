@@ -2,6 +2,7 @@
 
 source "https://rubygems.org/"
 
+gem "benchmark"
 gem "faker"
 gem "groonga-synonym"
 gem "natto"
