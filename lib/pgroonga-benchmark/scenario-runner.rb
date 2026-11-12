@@ -25,18 +25,23 @@ module PGroongaBenchmark
         end
       end
       n_workers = data["n_workers"] || 1
+      n_finished_workers = 0
       queue = Thread::Queue.new
       threads = n_workers.times.collect do
         Thread.new do
-          @config.postgresql.open_connection do |connection|
-            loop do
-              job = queue.pop
-              break if job.nil?
-              process_job(connection, job)
+          begin
+            @config.postgresql.open_connection do |connection|
+              loop do
+                job = queue.pop
+                break if job.nil?
+                process_job(connection, job)
+              end
             end
-          end
-          @mutex.synchronize do
-            @condition_variable.signal
+          ensure
+            @mutex.synchronize do
+              n_finished_workers += 1
+              @condition_variable.signal
+            end
           end
         end
       end
@@ -68,15 +73,19 @@ module PGroongaBenchmark
         queue << nil
       end
       loop do
-        threads.delete_if(&:alive?)
-        break if threads.empty?
-        n_remained_jobs = queue.size - n_workers
-        break if n_remained_jobs.zero?
+        finished = false
+        n_remained_jobs = nil
         @mutex.synchronize do
-          @condition_variable.wait(@mutex)
+          if n_finished_workers < n_workers
+            @condition_variable.wait(@mutex)
+          end
+          finished = (n_finished_workers == n_workers)
+          n_remained_jobs = [queue.size - n_workers, 0].max
         end
+        break if finished
         yield(n_jobs, n_remained_jobs) if block_given?
       end
+      threads.each(&:join)
       yield(n_jobs, 0) if block_given?
       report
     end
