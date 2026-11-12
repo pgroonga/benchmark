@@ -52,8 +52,8 @@ module PGroongaBenchmark
             source_job = SourceJob.new(nth_try, nth_job, job, @path)
             source_job.each_sql_job do |sql_job|
               queue << sql_job
+              n_jobs += 1
             end
-            n_jobs += 1
           else
             n = job["n"]
             if n
@@ -72,6 +72,7 @@ module PGroongaBenchmark
       n_workers.times do
         queue << nil
       end
+      n_reported_remained_jobs = nil
       loop do
         finished = false
         n_remained_jobs = nil
@@ -80,13 +81,17 @@ module PGroongaBenchmark
             @condition_variable.wait(@mutex)
           end
           finished = (n_finished_workers == n_workers)
-          n_remained_jobs = [queue.size - n_workers, 0].max
+          n_remained_jobs = n_jobs - @statistics.size
         end
         break if finished
+        next if n_remained_jobs == n_reported_remained_jobs
         yield(n_jobs, n_remained_jobs) if block_given?
+        n_reported_remained_jobs = n_remained_jobs
       end
       threads.each(&:join)
-      yield(n_jobs, 0) if block_given?
+      unless n_reported_remained_jobs == 0
+        yield(n_jobs, 0) if block_given?
+      end
       report
     end
 
